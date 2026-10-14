@@ -222,6 +222,34 @@ describe("KanbanBoard", () => {
     expect(container.textContent).toContain("Live");
   });
 
+  it("shows the project chip on cards that have a project", () => {
+    const withProject = { ...createIssue(1, "todo"), projectId: "project-1" };
+    const unknownProject = { ...createIssue(2, "todo"), projectId: "project-missing" };
+    const withoutProject = createIssue(3, "todo");
+    const { container } = renderBoard({
+      issues: [withProject, unknownProject, withoutProject],
+      projects: [{ id: "project-1", name: "Leads Organizer", color: "#2563eb", icon: "rocket" }],
+    });
+
+    const cardLink = (identifier: string) => container.querySelector(`a[href="/issues/${identifier}"]`);
+    const chip = cardLink("PAP-1")?.querySelector('[data-testid="kanban-project-chip"]');
+    expect(chip?.textContent).toBe("Project: Leads Organizer");
+    expect(chip?.getAttribute("title")).toBe("Leads Organizer");
+    // The tile is decorative; the name is read as part of the card link.
+    expect(chip?.querySelector('[aria-hidden="true"]')).not.toBeNull();
+    expect(cardLink("PAP-1")?.textContent).toContain("Project: Leads Organizer");
+    expect(cardLink("PAP-2")?.querySelector('[data-testid="kanban-project-chip"]')).toBeNull();
+    expect(cardLink("PAP-3")?.querySelector('[data-testid="kanban-project-chip"]')).toBeNull();
+  });
+
+  it("hides project chips when no projects are passed", () => {
+    const { container } = renderBoard({
+      issues: [{ ...createIssue(1, "todo"), projectId: "project-1" }],
+    });
+
+    expect(container.querySelector('[data-testid="kanban-project-chip"]')).toBeNull();
+  });
+
   it("resolves drop targets from status rails and cards", () => {
     const issues = [
       createIssue(1, "todo"),

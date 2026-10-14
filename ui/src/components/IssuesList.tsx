@@ -2029,6 +2029,8 @@ function StreamlinedIssuesList({
         <KanbanBoard
           issues={filtered}
           agents={agents}
+          // Project chips are noise on a board scoped to a single project.
+          projects={projectId || viewState.projects.length === 1 ? undefined : projects}
           liveIssueIds={liveIssueIds}
           compactCards={boardCompactCards}
           collapsedStatuses={boardCollapsedStatuses}
