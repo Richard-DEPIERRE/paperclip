@@ -1432,6 +1432,58 @@ describe("IssuesList", () => {
     });
   });
 
+  it("passes projects to the board unless it is scoped to one project", async () => {
+    const projects = [
+      { id: "project-1", name: "Alpha", color: "#2563eb" },
+      { id: "project-2", name: "Beta", color: null },
+    ];
+    mockIssuesApi.list.mockResolvedValue([]);
+
+    const renderBoard = async (
+      viewState: Record<string, unknown>,
+      projectId?: string,
+    ) => {
+      mockKanbanBoard.mockClear();
+      localStorage.setItem(
+        taskCollectionPreferencesStorageKey({
+          companyId: "company-1",
+          collectionKey: "paperclip:test-issues",
+        }),
+        JSON.stringify({
+          version: 1,
+          companyId: "company-1",
+          collectionKey: "paperclip:test-issues",
+          viewState,
+          columns: [],
+        }),
+      );
+      const { root } = renderWithQueryClient(
+        <IssuesList
+          issues={[]}
+          agents={[]}
+          projects={projects}
+          projectId={projectId}
+          viewStateKey="paperclip:test-issues"
+          onUpdateIssue={() => undefined}
+        />,
+        container,
+      );
+      await waitForAssertion(() => {
+        expect(mockKanbanBoard).toHaveBeenCalled();
+      });
+      const lastProps = mockKanbanBoard.mock.calls.at(-1)?.[0] as { projects?: unknown };
+      act(() => {
+        root.unmount();
+      });
+      return lastProps.projects;
+    };
+
+    expect(await renderBoard({ viewMode: "board" })).toBe(projects);
+    expect(await renderBoard({ viewMode: "board", projects: ["project-1", "project-2"] })).toBe(projects);
+    expect(await renderBoard({ viewMode: "board", projects: ["project-1"] })).toBeUndefined();
+    expect(await renderBoard({ viewMode: "board" }, "project-1")).toBeUndefined();
+  });
+
   it("lets board users choose the per-column page size", async () => {
     localStorage.setItem(
       "paperclip:test-issues:company-1",

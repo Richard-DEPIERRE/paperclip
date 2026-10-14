@@ -22,7 +22,8 @@ import { StatusIcon } from "./StatusIcon";
 import { PriorityIcon } from "./PriorityIcon";
 import { SHOW_TASK_PRIORITY_UI } from "../lib/ui-flags";
 import { Identity } from "./Identity";
-import type { Issue, IssueStatus } from "@paperclipai/shared";
+import { ProjectTile } from "./ProjectTile";
+import type { Issue, IssueStatus, Project } from "@paperclipai/shared";
 import { AlertTriangle } from "lucide-react";
 import { isSuccessfulRunHandoffRequired } from "../lib/successful-run-handoff";
 import { collectSubtreeLiveCounts } from "../lib/liveIssueIds";
@@ -147,9 +148,16 @@ interface Agent {
   name: string;
 }
 
+export type KanbanProject = Pick<Project, "id" | "name"> & Partial<Pick<Project, "color" | "icon">>;
+
 interface KanbanBoardProps {
   issues: Issue[];
   agents?: Agent[];
+  /**
+   * Projects already loaded by the page. When set, each card with a project
+   * shows a chip (tile + name). Leave unset on a board scoped to one project.
+   */
+  projects?: KanbanProject[];
   liveIssueIds?: Set<string>;
   compactCards?: boolean;
   collapsedStatuses?: string[];
@@ -164,6 +172,7 @@ function KanbanColumn({
   status,
   issues,
   agents,
+  projectById,
   liveIssueIds,
   subtreeLiveCounts,
   compactCards = false,
@@ -175,6 +184,7 @@ function KanbanColumn({
   status: IssueStatus;
   issues: Issue[];
   agents?: Agent[];
+  projectById?: ReadonlyMap<string, KanbanProject>;
   liveIssueIds?: Set<string>;
   subtreeLiveCounts?: ReadonlyMap<string, number>;
   compactCards?: boolean;
@@ -241,6 +251,7 @@ function KanbanColumn({
               key={issue.id}
               issue={issue}
               agents={agents}
+              project={issue.projectId ? projectById?.get(issue.projectId) : undefined}
               isLive={liveIssueIds?.has(issue.id)}
               subtreeLiveCount={subtreeLiveCounts?.get(issue.id) ?? 0}
               compact={compactCards}
@@ -272,6 +283,7 @@ function KanbanColumn({
 function KanbanCard({
   issue,
   agents,
+  project,
   isLive,
   subtreeLiveCount = 0,
   isOverlay,
@@ -280,6 +292,7 @@ function KanbanCard({
 }: {
   issue: Issue;
   agents?: Agent[];
+  project?: KanbanProject;
   isLive?: boolean;
   subtreeLiveCount?: number;
   isOverlay?: boolean;
@@ -365,6 +378,7 @@ function KanbanCard({
         <div className="flex items-center gap-2 min-w-0">
           {/* PAP-411: priority UI hidden behind SHOW_TASK_PRIORITY_UI. */}
           {SHOW_TASK_PRIORITY_UI && <PriorityIcon priority={issue.priority} />}
+          {project ? <KanbanProjectChip project={project} /> : null}
           {issue.assigneeAgentId && (() => {
             const name = agentName(issue.assigneeAgentId);
             return name ? (
@@ -381,11 +395,29 @@ function KanbanCard({
   );
 }
 
+/* ── Project Chip ── */
+
+function KanbanProjectChip({ project }: { project: KanbanProject }) {
+  // Inside the card link, so the name is part of the card's accessible name.
+  return (
+    <span
+      data-testid="kanban-project-chip"
+      className="inline-flex min-w-0 max-w-(--pct-70) items-center gap-1 rounded-sm border border-border bg-background/60 py-px pl-px pr-1.5 text-xs text-muted-foreground"
+      title={project.name}
+    >
+      <ProjectTile color={project.color ?? null} icon={project.icon ?? null} size="xs" />
+      <span className="sr-only">Project: </span>
+      <span className="truncate">{project.name}</span>
+    </span>
+  );
+}
+
 /* ── Main Board ── */
 
 export function KanbanBoard({
   issues,
   agents,
+  projects,
   liveIssueIds,
   compactCards = false,
   collapsedStatuses = [],
@@ -401,6 +433,10 @@ export function KanbanBoard({
   }>({ paginationKey, counts: {} });
   const visibleCountByStatus = visibleState.paginationKey === paginationKey ? visibleState.counts : {};
   const collapsedStatusSet = useMemo(() => new Set(collapsedStatuses), [collapsedStatuses]);
+  const projectById = useMemo(
+    () => (projects ? new Map(projects.map((project) => [project.id, project])) : undefined),
+    [projects],
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -469,6 +505,7 @@ export function KanbanBoard({
             status={status}
             issues={columnIssues[status] ?? []}
             agents={agents}
+            projectById={projectById}
             liveIssueIds={liveIssueIds}
             subtreeLiveCounts={subtreeLiveCounts}
             compactCards={compactCards}
@@ -495,7 +532,13 @@ export function KanbanBoard({
       </div>
       <DragOverlay>
         {activeIssue ? (
-          <KanbanCard issue={activeIssue} agents={agents} isOverlay compact={compactCards} />
+          <KanbanCard
+            issue={activeIssue}
+            agents={agents}
+            project={activeIssue.projectId ? projectById?.get(activeIssue.projectId) : undefined}
+            isOverlay
+            compact={compactCards}
+          />
         ) : null}
       </DragOverlay>
     </DndContext>
