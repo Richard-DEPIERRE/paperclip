@@ -50,6 +50,7 @@ import {
   storybookAgents,
   storybookIssues,
   storybookLiveRuns,
+  storybookProjects,
 } from "../fixtures/paperclipData";
 
 const companyId = "company-storybook";
@@ -174,6 +175,7 @@ const kanbanIssues: Issue[] = [
     identifier: "PAP-1701",
     issueNumber: 1701,
     title: "Sketch company analytics dashboard",
+    projectId: "project-runtime",
     status: "backlog",
     priority: "low",
     assigneeAgentId: "agent-cto",
@@ -183,6 +185,7 @@ const kanbanIssues: Issue[] = [
     identifier: "PAP-1702",
     issueNumber: 1702,
     title: "Remove obsolete color token migration",
+    projectId: null,
     status: "cancelled",
     priority: "medium",
     assigneeAgentId: null,
@@ -242,6 +245,7 @@ function KanbanBoardDemo({ empty = false }: { empty?: boolean }) {
         <KanbanBoard
           issues={issues}
           agents={storybookAgents}
+          projects={storybookProjects}
           liveIssueIds={liveIssueIds}
           onUpdateIssue={(id, data) => {
             setIssues((current) =>
