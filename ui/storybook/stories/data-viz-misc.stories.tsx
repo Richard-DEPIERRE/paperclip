@@ -26,7 +26,7 @@ import { AsciiArtAnimation } from "@/components/AsciiArtAnimation";
 import { CompanyPatternIcon } from "@/components/CompanyPatternIcon";
 import { EntityRow } from "@/components/EntityRow";
 import { FilterBar, type FilterValue } from "@/components/FilterBar";
-import { KanbanBoard } from "@/components/KanbanBoard";
+import { KanbanBoard, type KanbanProject } from "@/components/KanbanBoard";
 import { LiveRunWidget } from "@/components/LiveRunWidget";
 import { OnboardingWizard } from "@/components/OnboardingWizard";
 import {
@@ -192,6 +192,34 @@ const kanbanIssues: Issue[] = [
     priority: "medium",
     assigneeAgentId: null,
   }),
+  createIssue({
+    id: "issue-kanban-long-project",
+    identifier: "PAP-1703",
+    issueNumber: 1703,
+    title: "Map legacy billing exports to the new ledger",
+    projectId: "project-kanban-long-name",
+    status: "todo",
+    priority: "medium",
+    assigneeAgentId: "agent-qa",
+  }),
+  createIssue({
+    id: "issue-kanban-neutral-project",
+    identifier: "PAP-1704",
+    issueNumber: 1704,
+    title: "Tidy up stale workspace folders",
+    projectId: "project-kanban-neutral",
+    status: "todo",
+    priority: "low",
+    assigneeAgentId: "agent-codex",
+  }),
+];
+
+// Chip edge cases: an icon set, a long name (truncation), no colour (neutral tile).
+const kanbanProjects: KanbanProject[] = [
+  ...storybookProjects,
+  { id: "project-board-ui", name: "Board UI", color: "#7c3aed", icon: "git-branch" },
+  { id: "project-kanban-long-name", name: "Customer Onboarding and Billing Migration Workstream", color: "#16a34a" },
+  { id: "project-kanban-neutral", name: "Ops Housekeeping", color: null },
 ];
 
 const packageFiles: Record<string, string> = {
@@ -237,7 +265,7 @@ function ActivityChartsMatrix({ empty = false }: { empty?: boolean }) {
   );
 }
 
-function KanbanBoardDemo({ empty = false }: { empty?: boolean }) {
+function KanbanBoardDemo({ empty = false, compact = false }: { empty?: boolean; compact?: boolean }) {
   const [issues, setIssues] = useState<Issue[]>(empty ? [] : kanbanIssues);
   const liveIssueIds = useMemo(() => new Set(["issue-storybook-1", "issue-kanban-backlog"]), []);
 
@@ -247,8 +275,9 @@ function KanbanBoardDemo({ empty = false }: { empty?: boolean }) {
         <KanbanBoard
           issues={issues}
           agents={storybookAgents}
-          projects={storybookProjects}
+          projects={kanbanProjects}
           liveIssueIds={liveIssueIds}
+          compactCards={compact}
           onUpdateIssue={(id, data) => {
             setIssues((current) =>
               current.map((issue) => (issue.id === id ? { ...issue, ...data } : issue)),
@@ -674,6 +703,11 @@ export const ActivityChartsEmpty: Story = {
 export const KanbanBoardPopulated: Story = {
   name: "KanbanBoard / Populated",
   render: () => <KanbanBoardDemo />,
+};
+
+export const KanbanBoardCompact: Story = {
+  name: "KanbanBoard / Compact cards",
+  render: () => <KanbanBoardDemo compact />,
 };
 
 export const KanbanBoardEmpty: Story = {

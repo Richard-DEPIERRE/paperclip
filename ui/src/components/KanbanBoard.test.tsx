@@ -242,6 +242,16 @@ describe("KanbanBoard", () => {
     expect(cardLink("PAP-3")?.querySelector('[data-testid="kanban-project-chip"]')).toBeNull();
   });
 
+  it("labels the assignee for screen readers", () => {
+    const unknownAgent = { ...createIssue(2, "todo"), assigneeAgentId: "agent-missing-123" };
+    const { container } = renderBoard({ issues: [createIssue(1, "todo"), unknownAgent, createIssue(3, "todo")] });
+
+    const cardLink = (identifier: string) => container.querySelector(`a[href="/issues/${identifier}"]`);
+    expect(cardLink("PAP-1")?.textContent).toContain("Assignee: Codex");
+    expect(cardLink("PAP-2")?.textContent).toContain("Assignee: agent-mi");
+    expect(cardLink("PAP-3")?.textContent).not.toContain("Assignee:");
+  });
+
   it("hides project chips when no projects are passed", () => {
     const { container } = renderBoard({
       issues: [{ ...createIssue(1, "todo"), projectId: "project-1" }],
