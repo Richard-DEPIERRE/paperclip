@@ -378,7 +378,6 @@ function KanbanCard({
         <div className="flex items-center gap-2 min-w-0">
           {/* PAP-411: priority UI hidden behind SHOW_TASK_PRIORITY_UI. */}
           {SHOW_TASK_PRIORITY_UI && <PriorityIcon priority={issue.priority} />}
-          {project ? <KanbanProjectChip project={project} /> : null}
           {issue.assigneeAgentId && <span className="sr-only">Assignee: </span>}
           {issue.assigneeAgentId && (() => {
             const name = agentName(issue.assigneeAgentId);
@@ -390,6 +389,8 @@ function KanbanCard({
               </span>
             );
           })()}
+          {/* After the assignee, pushed right: both keep a fixed position on every card. */}
+          {project ? <KanbanProjectChip project={project} /> : null}
         </div>
       </Link>
     </Card>
@@ -402,10 +403,11 @@ function KanbanProjectChip({ project }: { project: KanbanProject }) {
   // Inside the card link, so the name is part of the card's accessible name.
   // A span, not a Badge: the tile sits flush in a square-ish box, which the
   // pill-shaped Badge can't do, and this is the only chip of its kind.
+  // shrink-100: when the row is full, the chip truncates before the assignee.
   return (
     <span
       data-testid="kanban-project-chip"
-      className="inline-flex min-w-0 max-w-(--pct-70) items-center gap-1 rounded-md border border-border py-px pl-px pr-1.5 text-xs text-muted-foreground"
+      className="ml-auto inline-flex min-w-0 max-w-(--pct-50) shrink-100 items-center gap-1 rounded-md border border-border py-px pl-px pr-1.5 text-xs text-muted-foreground"
       title={project.name}
     >
       <ProjectTile color={project.color ?? null} icon={project.icon ?? null} size="xs" />

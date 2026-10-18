@@ -252,6 +252,18 @@ describe("KanbanBoard", () => {
     expect(cardLink("PAP-3")?.textContent).not.toContain("Assignee:");
   });
 
+  it("reads the assignee before the project chip, matching the visual order", () => {
+    const issue = { ...createIssue(1, "todo"), projectId: "project-1" };
+    const { container } = renderBoard({
+      issues: [issue],
+      projects: [{ id: "project-1", name: "Leads Organizer", color: null, icon: null }],
+    });
+
+    const text = container.querySelector('a[href="/issues/PAP-1"]')?.textContent ?? "";
+    expect(text.indexOf("Assignee: Codex")).toBeGreaterThan(-1);
+    expect(text.indexOf("Assignee: Codex")).toBeLessThan(text.indexOf("Project: Leads Organizer"));
+  });
+
   it("hides project chips when no projects are passed", () => {
     const { container } = renderBoard({
       issues: [{ ...createIssue(1, "todo"), projectId: "project-1" }],

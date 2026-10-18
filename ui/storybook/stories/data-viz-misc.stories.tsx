@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { HeartbeatRun, Issue } from "@paperclipai/shared";
+import type { Agent, HeartbeatRun, Issue } from "@paperclipai/shared";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Archive,
@@ -198,7 +198,7 @@ const kanbanIssues: Issue[] = [
     projectId: "project-kanban-long-name",
     status: "todo",
     priority: "medium",
-    assigneeAgentId: "agent-qa",
+    assigneeAgentId: "agent-kanban-long-name",
   }),
   createIssue({
     id: "issue-kanban-neutral-project",
@@ -208,7 +208,7 @@ const kanbanIssues: Issue[] = [
     projectId: "project-kanban-neutral",
     status: "todo",
     priority: "low",
-    assigneeAgentId: "agent-codex",
+    assigneeAgentId: null,
   }),
 ];
 
@@ -218,6 +218,12 @@ const kanbanProjects: KanbanProject[] = [
   { id: "project-board-ui", name: "Board UI", color: "#7c3aed", icon: "git-branch" },
   { id: "project-kanban-long-name", name: "Customer Onboarding and Billing Migration Workstream", color: "#16a34a" },
   { id: "project-kanban-neutral", name: "Ops Housekeeping", color: null },
+];
+
+// A long agent name next to the long project name: the chip truncates first.
+const kanbanAgents: Agent[] = [
+  ...storybookAgents,
+  { ...storybookAgents[0], id: "agent-kanban-long-name", name: "Apple & Mobile Engineer", urlKey: "apple-mobile-engineer" },
 ];
 
 const packageFiles: Record<string, string> = {
@@ -272,7 +278,7 @@ function KanbanBoardDemo({ empty = false, compact = false }: { empty?: boolean; 
       <Section eyebrow="KanbanBoard" title={empty ? "Collapsed empty workflow columns" : "Draggable issue cards by status"}>
         <KanbanBoard
           issues={issues}
-          agents={storybookAgents}
+          agents={kanbanAgents}
           projects={kanbanProjects}
           liveIssueIds={liveIssueIds}
           compactCards={compact}
