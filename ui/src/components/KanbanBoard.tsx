@@ -382,9 +382,9 @@ function KanbanCard({
           {issue.assigneeAgentId && (() => {
             const name = agentName(issue.assigneeAgentId);
             return name ? (
-              <AgentIdentity agent={agents?.find((agent) => agent.id === issue.assigneeAgentId) ?? { id: issue.assigneeAgentId, name }} size="xs" />
+              <AgentIdentity agent={agents?.find((agent) => agent.id === issue.assigneeAgentId) ?? { id: issue.assigneeAgentId, name }} size="xs" className="shrink-0 max-w-full" />
             ) : (
-              <span className="text-xs text-muted-foreground font-mono">
+              <span className="text-xs text-muted-foreground font-mono shrink-0">
                 {issue.assigneeAgentId.slice(0, 8)}
               </span>
             );
@@ -403,11 +403,11 @@ function KanbanProjectChip({ project }: { project: KanbanProject }) {
   // Inside the card link, so the name is part of the card's accessible name.
   // A span, not a Badge: the tile sits flush in a square-ish box, which the
   // pill-shaped Badge can't do, and this is the only chip of its kind.
-  // shrink-100: when the row is full, the chip truncates before the assignee.
+  // The assignee is shrink-0, so when the row is full only this chip truncates.
   return (
     <span
       data-testid="kanban-project-chip"
-      className="ml-auto inline-flex min-w-0 max-w-(--pct-50) shrink-100 items-center gap-1 rounded-md border border-border py-px pl-px pr-1.5 text-xs text-muted-foreground"
+      className="ml-auto inline-flex min-w-0 max-w-(--pct-50) items-center gap-1 rounded-md border border-border py-px pl-px pr-1.5 text-xs text-muted-foreground"
       title={project.name}
     >
       <ProjectTile color={project.color ?? null} icon={project.icon ?? null} size="xs" />
