@@ -242,6 +242,44 @@ describe("KanbanBoard", () => {
     expect(cardLink("PAP-3")?.querySelector('[data-testid="kanban-project-chip"]')).toBeNull();
   });
 
+  it("labels the assignee for screen readers", () => {
+    const unknownAgent = { ...createIssue(2, "todo"), assigneeAgentId: "agent-missing-123" };
+    const { container } = renderBoard({ issues: [createIssue(1, "todo"), unknownAgent, createIssue(3, "todo")] });
+
+    const cardLink = (identifier: string) => container.querySelector(`a[href="/issues/${identifier}"]`);
+    expect(cardLink("PAP-1")?.textContent).toContain("Assignee: Codex");
+    expect(cardLink("PAP-2")?.textContent).toContain("Assignee: agent-mi");
+    expect(cardLink("PAP-3")?.textContent).not.toContain("Assignee:");
+  });
+
+  it("reads the assignee before the project chip, matching the visual order", () => {
+    const issue = { ...createIssue(1, "todo"), projectId: "project-1" };
+    const { container } = renderBoard({
+      issues: [issue],
+      projects: [{ id: "project-1", name: "Leads Organizer", color: null, icon: null }],
+    });
+
+    const text = container.querySelector('a[href="/issues/PAP-1"]')?.textContent ?? "";
+    expect(text.indexOf("Assignee: Codex")).toBeGreaterThan(-1);
+    expect(text.indexOf("Assignee: Codex")).toBeLessThan(text.indexOf("Project: Leads Organizer"));
+  });
+
+  it("truncates the project chip, never the assignee, when the row is full", () => {
+    const unknownAgent = { ...createIssue(2, "todo"), assigneeAgentId: "agent-missing-123", projectId: "project-1" };
+    const { container } = renderBoard({
+      issues: [{ ...createIssue(1, "todo"), projectId: "project-1" }, unknownAgent],
+      projects: [{ id: "project-1", name: "Leads Organizer", color: null, icon: null }],
+    });
+
+    const cardLink = (identifier: string) => container.querySelector(`a[href="/issues/${identifier}"]`);
+    // jsdom does no layout: check the flex rules. Any shrinkable assignee loses
+    // its share of the overflow, however small, and shows an ellipsis.
+    expect(cardLink("PAP-1")?.querySelector('[title="Codex"]')?.className).toContain("shrink-0");
+    const fallback = Array.from(cardLink("PAP-2")?.querySelectorAll("span") ?? []).find((span) => span.textContent === "agent-mi");
+    expect(fallback?.className).toContain("shrink-0");
+    expect(cardLink("PAP-1")?.querySelector('[data-testid="kanban-project-chip"]')?.className).toContain("min-w-0");
+  });
+
   it("hides project chips when no projects are passed", () => {
     const { container } = renderBoard({
       issues: [{ ...createIssue(1, "todo"), projectId: "project-1" }],
