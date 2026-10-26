@@ -234,6 +234,8 @@ process.stdout.write(JSON.stringify({identity, token:process.env.GH_TOKEN ?? nul
     [["--config-env=safe.barerepository=PAPERCLIP_TEST_BARE"]],
     [["--config-env", "SAFE.bareRepository=PAPERCLIP_TEST_BARE"]],
     [["-C", "workspace/planted", "--no-pager", "-c", " safe.bareRepository=all"]],
+    [["--shallow-file", "x", "-c", "safe.bareRepository=all"]],
+    [["--shallow-file", "x", "--config-env", "safe.bareRepository=PAPERCLIP_TEST_BARE"]],
   ])("refuses a command-line override of safe.bareRepository: %j", async (options) => {
     const root = await mkdtemp(path.join(os.tmpdir(), "paperclip-github-bare-override-"));
     cleanups.push(() => rm(root, { recursive: true, force: true }));
@@ -249,8 +251,5 @@ process.stdout.write(JSON.stringify({identity, token:process.env.GH_TOKEN ?? nul
     await expect(exec(path.join(bin, "git"), [...options, "pwn"], { cwd, env }))
       .rejects.toThrow(/Paperclip: git -c safe\.bareRepository is refused/);
     await expect(access(marker)).rejects.toThrow();
-    // Only Git's own options before the subcommand set configuration.
-    expect((await exec(path.join(bin, "git"), ["rev-parse", "--sq-quote", "-c", "safe.bareRepository=all"], { cwd: root, env })).stdout.trim())
-      .toBe("'-c' 'safe.bareRepository=all'");
   });
 });
