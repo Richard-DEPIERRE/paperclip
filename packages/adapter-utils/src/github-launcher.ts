@@ -91,13 +91,24 @@ async function main() {
         process.stderr.write('Paperclip: GitHub access unavailable: ' + reason + '. Continuing without GitHub credentials.\n');
       }
       if (result.status === 'available' && configReady) {
+        // A malformed count would make Git skip entries or refuse to start, so the
+        // broker's Git config is then dropped whole and the launcher's own stays.
+        const brokerConfig = /^\d{1,4}$/.test((result.env || {}).GIT_CONFIG_COUNT);
         for (const [key, value] of Object.entries(result.env || {})) {
+          if (!brokerConfig && key.startsWith('GIT_CONFIG_')) continue;
           if (/^(GH_TOKEN|GITHUB_TOKEN|PAPERCLIP_GIT_TOKEN|GIT_TERMINAL_PROMPT|GIT_AUTHOR_(NAME|EMAIL)|GIT_COMMITTER_(NAME|EMAIL)|GIT_CONFIG_COUNT|GIT_CONFIG_(KEY|VALUE)_\d+)$/.test(key) && typeof value === 'string') env[key] = value;
         }
       }
       }
     } else { diagnostic('capability_missing'); }
     } catch { diagnostic('broker_transport_unavailable'); }
+    // Use a bare repository only when named (--git-dir, GIT_DIR): one planted in a
+    // checkout, e.g. by an extracted archive, must not run its config or hooks when
+    // gh or npm runs Git there. Appended after the broker's entries so none replaces it.
+    const index = Number(env.GIT_CONFIG_COUNT);
+    env['GIT_CONFIG_KEY_' + index] = 'safe.bareRepository';
+    env['GIT_CONFIG_VALUE_' + index] = 'explicit';
+    env.GIT_CONFIG_COUNT = String(index + 1);
   }
   // Only this invocation and its children inherit the captured credential.
   // Its Git children use the real binary, so steering cannot split a gh operation.

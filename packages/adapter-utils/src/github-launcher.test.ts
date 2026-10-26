@@ -182,4 +182,48 @@ process.stdout.write(JSON.stringify({identity, token:process.env.GH_TOKEN ?? nul
     expect(env.GH_TOKEN).toBe("");
     expect(env.GIT_AUTHOR_NAME).toBe("");
   });
+
+  // A bare repository planted inside a checkout (an extracted archive) must not run
+  // its config or hooks when gh, npm or a plain `git status` discovers it.
+  it.each([
+    ["no broker", null],
+    ["a broker without Git config", { GH_TOKEN: "managed-token" }],
+    ["a broker with its own Git config", { GIT_CONFIG_COUNT: "2",
+      GIT_CONFIG_KEY_0: "credential.helper", GIT_CONFIG_VALUE_0: "",
+      GIT_CONFIG_KEY_1: "url.https://broker.example.test/.insteadOf", GIT_CONFIG_VALUE_1: "broker:" }],
+    ["a broker with a non-integer count", { GIT_CONFIG_COUNT: "two", GIT_CONFIG_KEY_0: "url.https://broker.example.test/.insteadOf", GIT_CONFIG_VALUE_0: "broker:" }],
+    ["a broker with a negative count", { GIT_CONFIG_COUNT: "-1", GIT_CONFIG_KEY_0: "url.https://broker.example.test/.insteadOf", GIT_CONFIG_VALUE_0: "broker:" }],
+    ["a broker with keys but no count", { GIT_CONFIG_KEY_0: "url.https://broker.example.test/.insteadOf", GIT_CONFIG_VALUE_0: "broker:" }],
+  ] as const)("only uses bare repositories named explicitly with %s", async (label, brokerEnv) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "paperclip-github-bare-"));
+    cleanups.push(() => rm(root, { recursive: true, force: true }));
+    const bin = path.join(root, "managed"), planted = path.join(root, "workspace", "planted");
+    await mkdir(bin);
+    await mkdir(planted, { recursive: true });
+    await writeFile(path.join(bin, "git"), githubLauncherSource(), { mode: 0o700 });
+    let url = "";
+    if (brokerEnv) {
+      const server = createServer((_req, res) => {
+        res.setHeader("content-type", "application/json");
+        res.end(JSON.stringify({ status: "available", env: brokerEnv }));
+      });
+      await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+      cleanups.push(() => new Promise<void>(resolve => server.close(() => resolve())));
+      url = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+    }
+    const env = { ...process.env, ...githubBrokerEnvironment({}, { url, token: url ? "run-capability" : "" }), PATH: `${bin}:${process.env.PATH}` };
+    const git = async (cwd: string, ...args: string[]) => (await exec(path.join(bin, "git"), args, { cwd, env })).stdout.trim();
+    expect(await git(root, "config", "--show-scope", "--get", "safe.bareRepository")).toBe("command\texplicit");
+    const config = await git(root, "config", "--list", "--show-scope");
+    if (label === "a broker with its own Git config") {
+      expect(config).toContain("command\turl.https://broker.example.test/.insteadof=broker:");
+    } else {
+      // A malformed broker count is dropped whole; the launcher's own entries stay.
+      expect(config).not.toContain("broker.example.test");
+      expect(config).toContain("command\tuser.useconfigonly=true");
+    }
+    await exec("git", ["init", "--bare", "--quiet", planted]);
+    await expect(git(planted, "status")).rejects.toThrow(/cannot use bare repository/);
+    expect(await git(root, "--git-dir", planted, "rev-parse", "--is-bare-repository")).toBe("true");
+  }, 15_000);
 });
