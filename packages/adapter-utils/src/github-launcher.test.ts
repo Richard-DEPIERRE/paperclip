@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { createServer } from "node:http";
-import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { access, mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -226,4 +226,31 @@ process.stdout.write(JSON.stringify({identity, token:process.env.GH_TOKEN ?? nul
     await expect(git(planted, "status")).rejects.toThrow(/cannot use bare repository/);
     expect(await git(root, "--git-dir", planted, "rev-parse", "--is-bare-repository")).toBe("true");
   }, 15_000);
+
+  // Git reads -c and --config-env after the GIT_CONFIG_* entries, so an injected "fix"
+  // naming safe.bareRepository would load a planted repository's aliases again.
+  it.each([
+    [["-c", "safe.bareRepository=all"]],
+    [["--config-env=safe.barerepository=PAPERCLIP_TEST_BARE"]],
+    [["--config-env", "SAFE.bareRepository=PAPERCLIP_TEST_BARE"]],
+    [["-C", "workspace/planted", "--no-pager", "-c", " safe.bareRepository=all"]],
+  ])("refuses a command-line override of safe.bareRepository: %j", async (options) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "paperclip-github-bare-override-"));
+    cleanups.push(() => rm(root, { recursive: true, force: true }));
+    const bin = path.join(root, "managed"), planted = path.join(root, "workspace", "planted"), marker = path.join(root, "pwned");
+    await mkdir(bin);
+    await mkdir(planted, { recursive: true });
+    await writeFile(path.join(bin, "git"), githubLauncherSource(), { mode: 0o700 });
+    await exec("git", ["init", "--bare", "--quiet", planted]);
+    await exec("git", ["--git-dir", planted, "config", "alias.pwn", `!touch ${marker}`]);
+    const env = { ...process.env, ...githubBrokerEnvironment({}, { url: "", token: "" }),
+      PAPERCLIP_TEST_BARE: "all", PATH: `${bin}:${process.env.PATH}` };
+    const cwd = options[0] === "-C" ? root : planted;
+    await expect(exec(path.join(bin, "git"), [...options, "pwn"], { cwd, env }))
+      .rejects.toThrow(/Paperclip: git -c safe\.bareRepository is refused/);
+    await expect(access(marker)).rejects.toThrow();
+    // Only Git's own options before the subcommand set configuration.
+    expect((await exec(path.join(bin, "git"), ["rev-parse", "--sq-quote", "-c", "safe.bareRepository=all"], { cwd: root, env })).stdout.trim())
+      .toBe("'-c' 'safe.bareRepository=all'");
+  });
 });

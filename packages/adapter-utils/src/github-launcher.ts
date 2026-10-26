@@ -17,6 +17,21 @@ if (!['git', 'gh'].includes(program) || !executable) {
   process.stderr.write('Paperclip: requested GitHub command is not installed.\n');
   process.exit(127);
 }
+// Git reads -c and --config-env after GIT_CONFIG_*, so naming safe.bareRepository there
+// would undo the setting below. Only Git's own options, before the subcommand, count.
+if (program === 'git') {
+  const args = process.argv.slice(2);
+  for (let i = 0; i < args.length && args[i].startsWith('-'); i++) {
+    let config = '';
+    if (args[i] === '-c' || args[i] === '--config-env') config = args[++i] || '';
+    else if (args[i].startsWith('--config-env=')) config = args[i].slice(13);
+    else if (['-C', '--git-dir', '--work-tree', '--namespace', '--super-prefix', '--attr-source'].includes(args[i])) i++;
+    if (/^\s*safe\.barerepository\s*(=|$)/i.test(config)) {
+      process.stderr.write('Paperclip: git -c safe.bareRepository is refused; name a bare repository with --git-dir instead.\n');
+      process.exit(2);
+    }
+  }
+}
 async function main() {
   let env = { ...process.env };
   const diagnostic = (code) => process.stderr.write('Paperclip: GitHub ' + code + '; continuing without managed credentials.\n');
